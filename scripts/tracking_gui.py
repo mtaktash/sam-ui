@@ -452,8 +452,7 @@ def init_sam(frames_path: str, sam: SAMState, state: TrackingUIState):
                 add_click_to_sam(click)
 
 
-def run_ui_for_split(
-    split: list[int],
+def run_ui(
     jpeg_file_paths: list[Path],
     temp_frames_path: list[Path],
     state: TrackingUIState,
@@ -468,12 +467,11 @@ def run_ui_for_split(
     state.reset_state()
 
     original_filenames_to_order = {}
-    for i, idx in tqdm(enumerate(split), "Copying frames"):
-        path = jpeg_file_paths[idx]
+    for i, path in tqdm(enumerate(jpeg_file_paths), "Copying frames"):
         image = open_image(path)
         image = image.resize(target_size_from_min_dimension(image, 512))
         state.temp_to_original_filenames[f"{i:04d}.jpg"] = path.stem
-        original_filenames_to_order[path.stem] = idx
+        original_filenames_to_order[path.stem] = i
         image.save(temp_frames_path / f"{i:04d}.jpg", quality=100)
 
     if Path(state.output_path).exists():
@@ -548,56 +546,14 @@ def main(args):
     if args.clear_output:
         shutil.rmtree(args.output_path, ignore_errors=True)
 
-    if args.train_test_json is not None:
-
-        with open(args.train_test_json, "r") as f:
-            train_test_json = json.load(f)
-
-        train_filenames = train_test_json["train"]
-        test_filenames = train_test_json["test"]
-
-    train_indices = []
-    test_indices = []
-    for idx, path in tqdm(enumerate(jpeg_file_paths)):
-
-        if args.test_k > 0:
-            if idx % args.test_k == 0:
-                test_indices.append(idx)
-            else:
-                train_indices.append(idx)
-
-        else:
-            if path.name in test_filenames:
-                test_indices.append(idx)
-            elif path.name in train_filenames:
-                train_indices.append(idx)
-
-    logger.info(f"Train frames: {len(train_indices)}")
-    logger.info(f"Test frames: {len(test_indices)}")
-
-    if args.train:
-        state = get_ui_state(TrackingUIState(output_path=args.output_path + "/train"))
-        temp_frames_path = Path(frames_path).parent / "frames_temp_train"
-        run_ui_for_split(
-            train_indices,
-            jpeg_file_paths,
-            temp_frames_path,
-            state,
-            args.ui_scale,
-        )
-
-    if args.test:
-        state = get_ui_state(TrackingUIState(output_path=args.output_path + "/test"))
-        state.test = True
-        temp_frames_path = Path(frames_path).parent / "frames_temp_test"
-
-        run_ui_for_split(
-            test_indices,
-            jpeg_file_paths,
-            temp_frames_path,
-            state,
-            args.ui_scale,
-        )
+    state = get_ui_state(TrackingUIState(output_path=args.output_path))
+    temp_frames_path = Path(frames_path).parent / "frames_temp"
+    run_ui(
+        jpeg_file_paths,
+        temp_frames_path,
+        state,
+        args.ui_scale,
+    )
 
 
 def parse_args():
@@ -606,13 +562,12 @@ def parse_args():
         "--frames-path",
         type=str,
         help="Path to the directory containing the frames",
-        default="/mnt/data/scannetpp/data/0a7cc12c0e/iphone/undistorted_images",
     )
     parser.add_argument(
         "--output-path",
         type=str,
         help="Path to the output directory",
-        default="output/0a7cc12c0e",
+        default="output",
     )
     parser.add_argument(
         "--ui-scale",
@@ -624,28 +579,6 @@ def parse_args():
         "--clear-output",
         action="store_true",
         help="Clear the output directory before starting",
-    )
-    parser.add_argument(
-        "--train",
-        action="store_true",
-        help="Only UI for train frames",
-    )
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        help="Only UI for test frames",
-    )
-    parser.add_argument(
-        "--test-k",
-        type=int,
-        help="Mark every k-th frame as a test frame. k = 0 means no test frames",
-        default=8,
-    )
-    parser.add_argument(
-        "--train-test-json",
-        type=str,
-        help="Mark frames in json as a test frames.",
-        default=None,
     )
     return parser.parse_args()
 
