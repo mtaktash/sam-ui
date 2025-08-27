@@ -26,7 +26,7 @@ Availiable arguments
 - Arrow Up ⬆️ → Select next object
 - Arrow Left ⬅️ → Go to previous frame
 - Arrow Right ➡️ → Go to next frame
-- P → Propagate changes to next frames (default is 16 frames forward)
+- P → Propagate changes to next frames
 - R → Reset state completely
 - S → Save all progress
 - C → Clear output
@@ -34,3 +34,6 @@ Availiable arguments
 ## GUI usage video
 
 [Watch the demo](assets/demo.mov)
+
+- Note that some of the propagation results are inconsistent with actual objects that are prompted, and the error accumulates because of wrong predictions
+- We currently set up the propagation for 16 frames forward, you might experiment with changing that number for the better results
